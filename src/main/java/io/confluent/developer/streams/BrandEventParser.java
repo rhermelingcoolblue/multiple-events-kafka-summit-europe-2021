@@ -268,27 +268,67 @@ public class BrandEventParser {
             e.printStackTrace(); // Log exception (use proper logging in production)
             return null; // Return null if any exception occurs
         }
+
     }
 
     private static WarrantyAddedToBrandEvent parseWarrantyAddedToBrand(GenericRecord record) {
-        if (!isFieldValid(record.get("aggregateId"), Integer.class) ||
-                !isFieldValid(record.get("timestamp"), String.class) ||
-                !isFieldValid(record.get("countryId"), Integer.class) ||
-                !isFieldValid(record.get("warrantyTypeId"), Integer.class) ||
-                !isFieldValid(record.get("warrantyTermInMonths"), Integer.class)) {
-            return null;
+        Logger logger = LoggerFactory.getLogger(BrandEventParser.class);
+        try {
+            logger.info("Parsing WarrantyAddedToBrandEvent record");
+            // Validate and extract aggregateId
+            Object aggregateIdObj = record.get("aggregate_id");
+            if (!(aggregateIdObj instanceof Utf8)) {
+                logger.info("Aggregate id not found");
+                logger.info(aggregateIdObj.getClass().getName());
+                return null; // Return null if aggregate_id is invalid
+            }
+
+            int brandId = Integer.parseInt(aggregateIdObj.toString());
+
+            // Validate and extract fields (stringified JSON)
+            Object fieldsObj = record.get("fields");
+            if (!(fieldsObj instanceof Utf8)) {
+                logger.info("Fields id not found");
+                return null; // Return null if fields is not a string
+            }
+            String fieldsJson = fieldsObj.toString();
+
+            // Parse fields JSON
+            JsonNode fieldsNode = new ObjectMapper().readTree(fieldsJson);
+
+            Integer warrantyTypeId = fieldsNode.has("warrantyTypeId") && fieldsNode.get("warrantyTypeId").isInt()
+                    ? fieldsNode.get("warrantyTypeId").asInt()
+                    : null;
+            if (warrantyTypeId == null) {
+                logger.info("warrantyTypeId not found");
+                return null; // Return null if fields is not a string
+            }
+
+            Integer countryId = fieldsNode.has("countryId") && fieldsNode.get("countryId").isInt()
+                    ? fieldsNode.get("countryId").asInt()
+                    : null;
+            if (countryId == null) {
+                logger.info("countryId not found");
+                return null; // Return null if fields is not a string
+            }
+
+            Integer warrantyTermInMonths = fieldsNode.has("warrantyTermInMonths")
+                    && fieldsNode.get("warrantyTermInMonths").isInt()
+                            ? fieldsNode.get("warrantyTermInMonths").asInt()
+                            : null;
+            if (warrantyTermInMonths == null) {
+                logger.info("warrantyTermInMonths not found");
+                return null; // Return null if fields is not a string
+            }
+
+            return new WarrantyAddedToBrandEvent(brandId, countryId, warrantyTypeId, warrantyTermInMonths);
+        } catch (Exception e) {
+            logger.error("Parsing record failed");
+            logger.error(e.getMessage());
+            logger.error(e.toString());
+            e.printStackTrace(); // Log exception (use proper logging in production)
+            return null; // Return null if any exception occurs
         }
 
-        int brandId = (Integer) record.get("aggregateId");
-        String timestamp = record.get("timestamp").toString();
-        int countryId = (Integer) record.get("countryId");
-        int warrantyTypeId = (Integer) record.get("warrantyTypeId");
-        int warrantyTermInMonths = (Integer) record.get("warrantyTermInMonths");
-
-        return new WarrantyAddedToBrandEvent(brandId, timestamp, countryId, warrantyTypeId, warrantyTermInMonths);
-    }
-
-    private static boolean isFieldValid(Object field, Class<?> expectedType) {
-        return field != null && expectedType.isInstance(field);
     }
 }

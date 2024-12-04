@@ -1,16 +1,13 @@
 package io.confluent.developer.streams;
 
 import io.confluent.developer.avro.BrandAggregate;
-import io.confluent.developer.avro.CustomerInfo;
-import io.confluent.developer.avro.PageView;
 import io.confluent.developer.avro.ProductLine;
-import io.confluent.developer.avro.Purchase;
+import io.confluent.developer.avro.WarrantyDetails;
 import io.confluent.developer.utils.PropertiesLoader;
 import io.confluent.kafka.streams.serdes.avro.SpecificAvroSerde;
 import io.confluent.kafka.streams.serdes.avro.GenericAvroSerde;
 
 import org.apache.avro.generic.GenericRecord;
-import org.apache.avro.specific.SpecificRecord;
 import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.streams.KafkaStreams;
@@ -18,8 +15,6 @@ import org.apache.kafka.streams.StreamsBuilder;
 import org.apache.kafka.streams.StreamsConfig;
 import org.apache.kafka.streams.Topology;
 import org.apache.kafka.streams.kstream.Consumed;
-import org.apache.kafka.streams.kstream.KStream;
-import org.apache.kafka.streams.kstream.Printed;
 import org.apache.kafka.streams.kstream.Produced;
 import org.apache.kafka.streams.processor.api.FixedKeyProcessor;
 import org.apache.kafka.streams.processor.api.FixedKeyProcessorContext;
@@ -38,14 +33,6 @@ import java.util.concurrent.CountDownLatch;
 
 public class BrandProjector {
     private static final Logger LOGGER = LoggerFactory.getLogger(BrandProjector.class);
-
-    public static void printMap(Map<?, ?> map) {
-        LOGGER.info("{");
-        for (Map.Entry<?, ?> entry : map.entrySet()) {
-            LOGGER.info("    " + entry.getKey() + ": " + entry.getValue() + ",");
-        }
-        LOGGER.info("}");
-    }
 
     public static void main(String[] args) {
         if (args.length < 1) {
@@ -234,6 +221,24 @@ public class BrandProjector {
 
                         productLines.put(String.valueOf(productLineAddedEvent.productLineId),
                                 new ProductLine(productLineAddedEvent.name));
+
+                        return brandAggregate;
+                    }
+
+                    if (parsedEvent instanceof WarrantyAddedToBrandEvent) {
+                        WarrantyAddedToBrandEvent warrantyAddedToBrandEvent = (WarrantyAddedToBrandEvent) parsedEvent;
+
+                        Map<String, WarrantyDetails> warranties = brandAggregate.getWarranty();
+
+                        if (warranties == null) {
+                            warranties = new HashMap<>();
+                            brandAggregate.setWarranty(warranties);
+                        }
+
+                        warranties.put(String.valueOf(warrantyAddedToBrandEvent.countryId),
+                                new WarrantyDetails(
+                                        warrantyAddedToBrandEvent.warrantyTermInMonths,
+                                        warrantyAddedToBrandEvent.warrantyTypeId));
 
                         return brandAggregate;
                     }
