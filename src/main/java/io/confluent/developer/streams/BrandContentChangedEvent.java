@@ -1,12 +1,14 @@
 package io.confluent.developer.streams;
 
+import java.util.Optional;
+
 public class BrandContentChangedEvent {
     public String eventName;
     public int brandId;
-    public String name;
+    public Optional<String> name;
     public int languageId;
-    public String description;
-    public Integer imageId;
+    public Optional<String> description;
+    public Optional<Integer> imageId;
 
     // Constructor
     public BrandContentChangedEvent(int brandId, int languageId) {
@@ -18,9 +20,9 @@ public class BrandContentChangedEvent {
     // Constructor with Optional Fields
     public BrandContentChangedEvent(int brandId, int languageId, String name, String description, Integer imageId) {
         this(brandId, languageId);
-        this.name = name;
-        this.description = description;
-        this.imageId = imageId;
+        this.name = Optional.ofNullable(name);
+        this.description = Optional.ofNullable(description);
+        this.imageId = Optional.ofNullable(imageId);
     }
 
     // Default Constructor

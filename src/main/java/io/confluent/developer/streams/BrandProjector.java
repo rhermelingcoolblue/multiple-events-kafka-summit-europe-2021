@@ -191,9 +191,38 @@ public class BrandProjector {
                         return brandAggregate;
                     }
 
+                    if (parsedEvent instanceof BrandContentChangedEvent) {
+                        BrandContentChangedEvent brandContentChangedEvent = (BrandContentChangedEvent) parsedEvent;
+                        String languageId = String.valueOf(brandContentChangedEvent.languageId);
+
+                        if (brandContentChangedEvent.name.isPresent()) {
+                            Map<String, String> localizedName = brandAggregate.getLocalizedName();
+                            if (localizedName == null) {
+                                localizedName = new HashMap<>();
+                                brandAggregate.setLocalizedName(localizedName);
+                            }
+                            localizedName.put(languageId, brandContentChangedEvent.name.get());
+                        }
+
+                        if (brandContentChangedEvent.imageId.isPresent()) {
+                            brandAggregate.setPrimaryImageId((double) brandContentChangedEvent.imageId.get());
+                        }
+
+                        if (brandContentChangedEvent.description.isPresent()) {
+
+                            Map<String, String> localizedDescription = brandAggregate.getLocalizedDescription();
+                            if (localizedDescription == null) {
+                                localizedDescription = new HashMap<>();
+                                brandAggregate.setLocalizedDescription(localizedDescription);
+                            }
+
+                            localizedDescription.put(languageId, brandContentChangedEvent.description.get());
+                        }
+
+                        return brandAggregate;
+                    }
                     return null;
                 }
-
             };
         }
     }

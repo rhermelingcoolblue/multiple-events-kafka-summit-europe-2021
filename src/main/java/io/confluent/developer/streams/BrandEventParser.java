@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.util.Utf8;
+import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class BrandEventParser {
@@ -122,6 +123,7 @@ public class BrandEventParser {
     }
 
     private static BrandContentAddedEvent parseBrandContentAddedEvent(GenericRecord record) {
+
         try {
             LoggerFactory.getLogger(BrandEventParser.class).info("Parsing BrandContentAddedEvent record");
             // Validate and extract aggregateId
@@ -176,26 +178,56 @@ public class BrandEventParser {
             e.printStackTrace(); // Log exception (use proper logging in production)
             return null; // Return null if any exception occurs
         }
-
     }
 
     private static BrandContentChangedEvent parseBrandContentChangedEvent(GenericRecord record) {
-        if (!isFieldValid(record.get("aggregateId"), Integer.class) ||
-                !isFieldValid(record.get("languageId"), Integer.class)) {
-            return null;
+        Logger logger = LoggerFactory.getLogger(BrandEventParser.class);
+        try {
+            logger.info("Parsing BrandContentChangedEvent record");
+            // Validate and extract aggregateId
+            Object aggregateIdObj = record.get("aggregate_id");
+            if (!(aggregateIdObj instanceof Utf8)) {
+                logger.info("Aggregate id not found");
+                logger.info(aggregateIdObj.getClass().getName());
+                return null; // Return null if aggregate_id is invalid
+            }
+
+            int brandId = Integer.parseInt(aggregateIdObj.toString());
+
+            // Validate and extract fields (stringified JSON)
+            Object fieldsObj = record.get("fields");
+            if (!(fieldsObj instanceof Utf8)) {
+                logger.info("Fields id not found");
+                return null; // Return null if fields is not a string
+            }
+            String fieldsJson = fieldsObj.toString();
+
+            // Parse fields JSON
+            JsonNode fieldsNode = new ObjectMapper().readTree(fieldsJson);
+
+            Integer languageId = fieldsNode.has("languageId") && fieldsNode.get("languageId").isInt()
+                    ? fieldsNode.get("languageId").asInt()
+                    : null;
+            if (languageId == null) {
+                logger.info("languageId not found in fields or wrong type");
+                return null;
+            }
+
+            String name = fieldsNode.path("name").asText(null);
+
+            Integer imageId = fieldsNode.has("imageId") && fieldsNode.get("imageId").isInt()
+                    ? fieldsNode.get("imageId").asInt()
+                    : null;
+            String description = fieldsNode.path("description").asText(null);
+
+            return new BrandContentChangedEvent(brandId, languageId, name, description, imageId);
+        } catch (Exception e) {
+            logger.error("Parsing record failed");
+            logger.error(e.getMessage());
+            logger.error(e.toString());
+            e.printStackTrace(); // Log exception (use proper logging in production)
+            return null; // Return null if any exception occurs
         }
-
-        int brandId = (Integer) record.get("aggregateId");
-        int languageId = (Integer) record.get("languageId");
-
-        BrandContentChangedEvent event = new BrandContentChangedEvent(brandId, languageId);
-
-        if (isFieldValid(record.get("name"), String.class)) {
-            event.name = (String) record.get("name");
-        }
-
-        return event;
-
     }
 
     private static ProductLineAddedEvent parseProductLineAddedEvent(GenericRecord record) {
