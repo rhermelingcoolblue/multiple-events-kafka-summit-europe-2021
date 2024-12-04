@@ -9,6 +9,7 @@ import org.apache.avro.specific.SpecificRecord;
 import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.streams.KafkaStreams;
 import org.apache.kafka.streams.StreamsBuilder;
+import org.apache.kafka.streams.StreamsConfig;
 import org.apache.kafka.streams.Topology;
 import org.apache.kafka.streams.kstream.Consumed;
 import org.apache.kafka.streams.kstream.Produced;
@@ -26,6 +27,13 @@ import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 
 public class MultiEventKafkaStreamsExample {
+    public static void printMap(Map<?, ?> map) {
+        System.out.println("{");
+        for (Map.Entry<?, ?> entry : map.entrySet()) {
+            System.out.println("    " + entry.getKey() + ": " + entry.getValue() + ",");
+        }
+        System.out.println("}");
+    }
 
     public static void main(String[] args) {
         if (args.length < 1) {
@@ -50,6 +58,7 @@ public class MultiEventKafkaStreamsExample {
                 Serdes.String(),
                 customerSerde);
 
+        streamsProperties.put(StreamsConfig.NUM_STREAM_THREADS_CONFIG, 1);
         builder.addStateStore(customerStore);
 
         builder.stream(inputTopic, Consumed.with(Serdes.String(), specificAvroSerde)
@@ -68,15 +77,14 @@ public class MultiEventKafkaStreamsExample {
         }
     }
 
-
     static <T extends SpecificRecord> SpecificAvroSerde<T> getSpecificAvroSerde(final Map<String, Object> configs) {
         final SpecificAvroSerde<T> specificAvroSerde = new SpecificAvroSerde<>();
         specificAvroSerde.configure(configs, false);
         return specificAvroSerde;
     }
 
-
-    static class EventValueTransformerSupplier implements FixedKeyProcessorSupplier<String, SpecificRecord, CustomerInfo> {
+    static class EventValueTransformerSupplier
+            implements FixedKeyProcessorSupplier<String, SpecificRecord, CustomerInfo> {
         private final String storename;
 
         public EventValueTransformerSupplier(String storename) {
@@ -87,7 +95,8 @@ public class MultiEventKafkaStreamsExample {
         public FixedKeyProcessor<String, SpecificRecord, CustomerInfo> get() {
             return new FixedKeyProcessor<>() {
                 private KeyValueStore<String, CustomerInfo> store;
-                private FixedKeyProcessorContext<String,CustomerInfo> context;
+                private FixedKeyProcessorContext<String, CustomerInfo> context;
+
                 @Override
                 public void init(FixedKeyProcessorContext<String, CustomerInfo> context) {
                     store = context.getStateStore(storename);

@@ -9,7 +9,6 @@ import io.confluent.kafka.serializers.KafkaAvroSerializer;
 import io.confluent.kafka.serializers.KafkaAvroSerializerConfig;
 import io.confluent.kafka.serializers.json.KafkaJsonSchemaSerializer;
 import io.confluent.kafka.serializers.json.KafkaJsonSchemaSerializerConfig;
-import io.confluent.kafka.serializers.protobuf.KafkaProtobufSerializer;
 import org.apache.avro.specific.SpecificRecordBase;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
@@ -39,38 +38,10 @@ public class DataProducer {
         produceAvroWrapped(producerConfigs);
         System.out.println("Producing records to topic with multi-Avro objects");
         produceAvro(producerConfigs);
-        System.out.println("Producing records to Proto multi-event topic");
-        produceProtobuf(producerConfigs);
         System.out.println("Producing records to JSON Schema multi-event topic");
         produceJsonSchema(producerConfigs);
 
     }
-
-    private static void produceProtobuf(final Map<String, Object> originalConfigs) {
-        Map<String, Object> producerConfigs = new HashMap<>(originalConfigs);
-        producerConfigs.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, KafkaProtobufSerializer.class);
-
-        try (final Producer<String, CustomerEvent> producer = new KafkaProducer<>(producerConfigs)) {
-            String topic = (String) producerConfigs.get("proto.topic");
-            List<CustomerEvent> events = new ArrayList<>();
-            Purchase purchase = Data.protoPurchase();
-            PageView pageView = Data.protoPageView();
-
-            CustomerEvent.Builder builder = CustomerEvent.newBuilder();
-            builder.setAction(purchase).setId(purchase.getCustomerId());
-            events.add(builder.build());
-            builder.clearAction();
-            builder.clearId();
-            builder.setAction(pageView).setId(pageView.getCustomerId());
-            events.add(builder.build());
-            events.forEach(event -> producer.send(new ProducerRecord<>(topic, event.getId(), event), ((metadata, exception) -> {
-                if (exception != null) {
-                    System.err.printf("Producing %s resulted in error %s", event, exception);
-                }
-            })));
-        }
-    }
-
 
     private static void produceAvroWrapped(final Map<String, Object> originalConfigs) {
         Map<String, Object> producerConfigs = new HashMap<>(originalConfigs);

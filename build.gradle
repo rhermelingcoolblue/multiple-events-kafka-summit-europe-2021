@@ -17,7 +17,6 @@ plugins {
     id 'java'
     id 'idea'
     id 'eclipse'
-    id "com.google.protobuf" version "0.9.4"
     id "com.github.imflog.kafka-schema-registry-gradle-plugin" version "1.1.1"
     id "com.github.davidmc24.gradle.plugin.avro" version "1.9.1"
     id 'com.github.eirnym.js2p' version '1.0'
@@ -40,7 +39,6 @@ repositories {
 }
 
 dependencies {
-    implementation 'com.google.protobuf:protobuf-java:3.25.0'
     implementation "org.apache.avro:avro:1.11.3"
 
     implementation "org.apache.logging.log4j:log4j-api:2.12.4"
@@ -49,23 +47,11 @@ dependencies {
 
     implementation 'org.apache.kafka:kafka-streams:3.6.0'
     implementation 'io.confluent:kafka-streams-avro-serde:7.5.2'
-    implementation 'io.confluent:kafka-streams-protobuf-serde:7.5.2'
     implementation 'io.confluent:kafka-streams-json-schema-serde:7.5.2'
 
     implementation "io.confluent:kafka-avro-serializer:7.5.2"
-    implementation "io.confluent:kafka-protobuf-serializer:7.5.2"
     implementation "io.confluent:kafka-json-schema-serializer:7.5.2"
-    implementation "io.confluent:kafka-protobuf-provider:7.5.2"
-}
-
-protobuf {
-    protoc {
-        artifact = 'com.google.protobuf:protoc:3.25.0'
-    }
-}
-
-compileJava {
-    dependsOn(generateProto)
+    implementation "com.fasterxml.jackson.core:jackson-databind:2.18.1"
 }
 
 processResources {
@@ -84,20 +70,12 @@ jsonSchema2Pojo {
 
 schemaRegistry {
     def props = new Properties()
-    file("src/main/resources/config.properties").withInputStream {props.load(it)}
+    def configs = file("src/main/resources/config.properties")
+    configs.withInputStream { props.load(it) }
     def srUrl = props.getProperty("schema.registry.url")
-    def auth =  props.getProperty("basic.auth.user.info").split(":")
-    println "Using Schema Registry endpoint:${srUrl}, username:${auth[0]},password:${auth[1]}"
+    println "Using local dev properties Schema Registry endpoint:${srUrl}"
 
     url = srUrl
-
-    credentials {
-        // username is the characters up to the ':' in the basic.auth.user.info property
-        username = auth[0]
-        // password is everything after ':' in the basic.auth.user.info property
-        password = auth[1]
-    }
-
 
     // Possible types are ["JSON", "PROTOBUF", "AVRO"]
     register {
@@ -131,6 +109,12 @@ task runProducer(type: JavaExec) {
 task runKafkaStreamsExample(type: JavaExec) {
     classpath = sourceSets.main.runtimeClasspath
     mainClass = 'io.confluent.developer.streams.MultiEventKafkaStreamsExample'
+    args  'src/main/resources/config.properties'
+}
+
+task runKafkaStreamsBrandProjector(type: JavaExec) {
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'io.confluent.developer.streams.BrandProjector'
     args  'src/main/resources/config.properties'
 }
 

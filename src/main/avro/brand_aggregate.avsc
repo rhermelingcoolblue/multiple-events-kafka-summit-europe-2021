@@ -1,0 +1,76 @@
+{
+  "type":"record",
+  "namespace": "io.confluent.developer.avro",
+  "name":"BrandAggregate",
+  "fields": [
+    {
+      "name": "internalName",
+      "type": "string"
+    },
+    {
+      "name": "localizedName",
+      "type": ["null", {
+        "type": "map",
+        "values": "string"
+      }],
+      "default": null,
+      "doc": "Localized names with language codes as keys (e.g., 'en', 'nl', 'de')."
+    },
+    {
+      "name": "localizedDescription",
+      "type": ["null", {
+        "type": "map",
+        "values": "string"
+      }],
+      "default": null,
+      "doc": "Localized descriptions with language codes as keys (e.g., 'en', 'nl', 'de')."
+    },
+    {
+      "name": "aggregateId",
+      "type": "string"
+    },
+    {
+      "name": "primaryImageId",
+      "type": ["null", "double"],
+      "default": null
+    },
+    {
+      "name": "productLines",
+      "type": ["null", {
+        "type": "map",
+        "values": {
+          "type": "record",
+          "name": "ProductLine",
+          "fields": [
+            {
+              "name": "name",
+              "type": "string"
+            }
+          ]
+        }
+      }],
+      "default": null
+    },
+    {
+      "name": "warranty",
+      "type": ["null", {
+        "type": "map",
+        "values": {
+          "type": "record",
+          "name": "WarrantyDetails",
+          "fields": [
+            {
+              "name": "term",
+              "type": "int"
+            },
+            {
+              "name": "type",
+              "type": "int"
+            }
+          ]
+        }
+      }],
+      "default": null
+    }
+  ]
+}

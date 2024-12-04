@@ -3,14 +3,13 @@ package io.confluent.developer.clients;
 import io.confluent.developer.avro.CustomerEvent;
 import io.confluent.developer.avro.PageView;
 import io.confluent.developer.avro.Purchase;
-import io.confluent.developer.proto.CustomerEventOrBuilder;
 import io.confluent.developer.utils.PropertiesLoader;
 import io.confluent.kafka.serializers.KafkaAvroDeserializer;
 import io.confluent.kafka.serializers.KafkaAvroDeserializerConfig;
 import io.confluent.kafka.serializers.json.KafkaJsonSchemaDeserializer;
 import io.confluent.kafka.serializers.json.KafkaJsonSchemaDeserializerConfig;
-import io.confluent.kafka.serializers.protobuf.KafkaProtobufDeserializer;
-import io.confluent.kafka.serializers.protobuf.KafkaProtobufDeserializerConfig;
+
+import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.specific.SpecificRecord;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
@@ -22,8 +21,6 @@ import java.time.Duration;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-
-import static io.confluent.developer.proto.CustomerEvent.ActionCase.*;
 
 public class MultiEventConsumer {
 
@@ -41,9 +38,6 @@ public class MultiEventConsumer {
 
         consumeAvroUnwrappedRecords(consumerConfigs);
         consumeAvroSpecificRecords(consumerConfigs);
-        consumeProtobufRecords(consumerConfigs);
-        consumeJsonSchemaRecords(consumerConfigs);
-
     }
 
     static void consumeAvroUnwrappedRecords(final Map<String, Object> baseConfigs) {
@@ -56,6 +50,22 @@ public class MultiEventConsumer {
             unwrappedConsumer.subscribe(Collections.singletonList(topicName));
             ConsumerRecords<String, SpecificRecord> records = unwrappedConsumer.poll(Duration.ofSeconds(5));
             records.forEach(record -> handleAvroRecord(record.value()));
+        }
+    }
+
+    static void consumeAvroGenericRecords(final Map<String, Object> baseConfigs) {
+        var consumerConfigs = new HashMap<>(baseConfigs);
+        consumerConfigs.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, KafkaAvroDeserializer.class);
+        consumerConfigs.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, KafkaAvroDeserializer.class);
+        consumerConfigs.put(ConsumerConfig.GROUP_ID_CONFIG, "brands-avro-group");
+        try (final Consumer<GenericRecord, GenericRecord> brandsConsumer = new KafkaConsumer<>(consumerConfigs)) {
+            final String topicName = (String) "brands";
+            brandsConsumer.subscribe(Collections.singletonList(topicName));
+            ConsumerRecords<GenericRecord, GenericRecord> records = brandsConsumer.poll(Duration.ofSeconds(5));
+            records.forEach(record -> {
+                System.out.printf("offset = %d, key = %s, value = %s \n", record.offset(), record.key(),
+                        record.value());
+            });
         }
     }
 
@@ -110,34 +120,8 @@ public class MultiEventConsumer {
             Purchase purchase = (Purchase) avroRecord;
             System.out.printf("[Avro] Found an Avro embedded Purchase event %s %n", purchase);
         } else {
-            throw new IllegalStateException(String.format("Unrecognized type %s %n", avroRecord.getSchema().getFullName()));
-        }
-    }
-
-    static void consumeProtobufRecords(final Map<String, Object> baseConfigs) {
-        var consumerConfigs = new HashMap<>(baseConfigs);
-        consumerConfigs.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, KafkaProtobufDeserializer.class);
-        consumerConfigs.put(KafkaProtobufDeserializerConfig.SPECIFIC_PROTOBUF_VALUE_TYPE, CustomerEvent.class);
-        consumerConfigs.put(ConsumerConfig.GROUP_ID_CONFIG, "proto-group");
-        try (final Consumer<String, CustomerEvent> protoConsumer = new KafkaConsumer<>(consumerConfigs)) {
-            final String topicName = (String) consumerConfigs.get("proto.topic");
-            protoConsumer.subscribe(Collections.singletonList(topicName));
-            ConsumerRecords<String, CustomerEvent> records = protoConsumer.poll(Duration.ofSeconds(5));
-            records.forEach(record -> {
-                final CustomerEvent customerEvent = record.value();
-                io.confluent.developer.proto.CustomerEvent.ActionCase actionCase = ((CustomerEventOrBuilder)customerEvent).getActionCase();
-                switch (actionCase) {
-                    case PURCHASE:
-                        System.out.printf("[Protobuf] Found a Purchase %s %n", customerEvent.getAction());
-                        break;
-                    case PAGE_VIEW:
-                        System.out.printf("[Protobuf] Found a PageView %s %n", customerEvent.getAction());
-                        break;
-                    case ACTION_NOT_SET:
-                        System.out.println("[Protobuf] Customer action not set");
-                        break;
-                }
-            });
+            throw new IllegalStateException(
+                    String.format("Unrecognized type %s %n", avroRecord.getSchema().getFullName()));
         }
     }
 }
