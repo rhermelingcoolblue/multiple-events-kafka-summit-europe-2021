@@ -5,6 +5,7 @@ build/
 config-local.properties
 config.properties
 
+bin/
 ccloud_library.sh
 stack-configs/
 logs/

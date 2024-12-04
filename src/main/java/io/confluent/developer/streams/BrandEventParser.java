@@ -231,17 +231,43 @@ public class BrandEventParser {
     }
 
     private static ProductLineAddedEvent parseProductLineAddedEvent(GenericRecord record) {
-        if (!isFieldValid(record.get("aggregateId"), Integer.class) ||
-                !isFieldValid(record.get("name"), String.class) ||
-                !isFieldValid(record.get("productLineId"), Integer.class)) {
-            return null;
+        Logger logger = LoggerFactory.getLogger(BrandEventParser.class);
+        try {
+            logger.info("Parsing ProductLineAddedEvent record");
+            // Validate and extract aggregateId
+            Object aggregateIdObj = record.get("aggregate_id");
+            if (!(aggregateIdObj instanceof Utf8)) {
+                logger.info("Aggregate id not found");
+                logger.info(aggregateIdObj.getClass().getName());
+                return null; // Return null if aggregate_id is invalid
+            }
+
+            int brandId = Integer.parseInt(aggregateIdObj.toString());
+
+            // Validate and extract fields (stringified JSON)
+            Object fieldsObj = record.get("fields");
+            if (!(fieldsObj instanceof Utf8)) {
+                logger.info("Fields id not found");
+                return null; // Return null if fields is not a string
+            }
+            String fieldsJson = fieldsObj.toString();
+
+            // Parse fields JSON
+            JsonNode fieldsNode = new ObjectMapper().readTree(fieldsJson);
+            String name = fieldsNode.path("name").asText(null);
+
+            Integer productLineId = fieldsNode.has("productLineId") && fieldsNode.get("productLineId").isInt()
+                    ? fieldsNode.get("productLineId").asInt()
+                    : null;
+
+            return new ProductLineAddedEvent(brandId, name, productLineId);
+        } catch (Exception e) {
+            logger.error("Parsing record failed");
+            logger.error(e.getMessage());
+            logger.error(e.toString());
+            e.printStackTrace(); // Log exception (use proper logging in production)
+            return null; // Return null if any exception occurs
         }
-
-        int brandId = (Integer) record.get("aggregateId");
-        String name = record.get("name").toString();
-        int productLineId = (Integer) record.get("productLineId");
-
-        return new ProductLineAddedEvent(brandId, name, productLineId);
     }
 
     private static WarrantyAddedToBrandEvent parseWarrantyAddedToBrand(GenericRecord record) {

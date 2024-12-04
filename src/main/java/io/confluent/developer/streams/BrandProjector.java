@@ -3,6 +3,7 @@ package io.confluent.developer.streams;
 import io.confluent.developer.avro.BrandAggregate;
 import io.confluent.developer.avro.CustomerInfo;
 import io.confluent.developer.avro.PageView;
+import io.confluent.developer.avro.ProductLine;
 import io.confluent.developer.avro.Purchase;
 import io.confluent.developer.utils.PropertiesLoader;
 import io.confluent.kafka.streams.serdes.avro.SpecificAvroSerde;
@@ -221,6 +222,22 @@ public class BrandProjector {
 
                         return brandAggregate;
                     }
+
+                    if (parsedEvent instanceof ProductLineAddedEvent) {
+                        ProductLineAddedEvent productLineAddedEvent = (ProductLineAddedEvent) parsedEvent;
+
+                        Map<String, ProductLine> productLines = brandAggregate.getProductLines();
+                        if (productLines == null) {
+                            productLines = new HashMap<>();
+                            brandAggregate.setProductLines(productLines);
+                        }
+
+                        productLines.put(String.valueOf(productLineAddedEvent.productLineId),
+                                new ProductLine(productLineAddedEvent.name));
+
+                        return brandAggregate;
+                    }
+
                     return null;
                 }
             };
